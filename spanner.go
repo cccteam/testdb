@@ -10,8 +10,7 @@ import (
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-playground/errors/v5"
-	_ "github.com/golang-migrate/migrate/v4/database/spanner" // spanner driver for the migrate package
-	_ "github.com/golang-migrate/migrate/v4/source/file"      // up/down script file source driver for the migrate package
+
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"google.golang.org/api/option"
@@ -41,26 +40,26 @@ type SpannerContainer struct {
 
 // NewSpannerContainer returns a initialized SpannerContainer ready to run to create databases for unit tests
 func NewSpannerContainer(ctx context.Context, imageVersion string) (*SpannerContainer, error) {
-	container, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			Started: true,
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "gcr.io/cloud-spanner-emulator/emulator:" + imageVersion,
-				WaitingFor:   wait.ForLog("Cloud Spanner emulator running"),
-				ExposedPorts: []string{defaultSpannerPort},
-			},
-		},
-	)
+	req := testcontainers.ContainerRequest{
+		Image:        "gcr.io/cloud-spanner-emulator/emulator:" + imageVersion,
+		WaitingFor:   wait.ForLog("Cloud Spanner emulator running"),
+		ExposedPorts: []string{defaultSpannerPort},
+	}
+
+	spannerC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		Started:          true,
+		ContainerRequest: req,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "testcontainers.GenericContainer()")
 	}
 
-	host, err := container.Host(ctx)
+	host, err := spannerC.Host(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get host for container")
 	}
 
-	externalPort, err := container.MappedPort(ctx, nat.Port(defaultSpannerPort))
+	externalPort, err := spannerC.MappedPort(ctx, nat.Port(defaultSpannerPort))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get external port for exposed port %s", defaultSpannerPort)
 	}
@@ -84,7 +83,7 @@ func NewSpannerContainer(ctx context.Context, imageVersion string) (*SpannerCont
 	}
 
 	return &SpannerContainer{
-		Container:  container,
+		Container:  spannerC,
 		admin:      admin,
 		opts:       opts,
 		port:       defaultSpannerPort,

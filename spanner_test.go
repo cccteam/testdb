@@ -120,14 +120,14 @@ func TestNewSpannerContainer(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "Conttainer with default host and port",
+			name: "Container with default host and port",
 			args: args{
 				ctx: context.Background(),
 			},
 			wantHost: "localhost",
 		},
 		{
-			name: "Conttainer error from canceled context",
+			name: "Container error from canceled context",
 			args: args{
 				ctx: ctx,
 			},

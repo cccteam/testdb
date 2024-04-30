@@ -20,7 +20,7 @@ import (
 
 const (
 	defaultPostgresPort     = "5432"
-	defaultPostgresDatabase = "5432"
+	defaultPostgresDatabase = "postgres"
 )
 
 // PostgresContainer represents a docker container running a postgres instance.
@@ -69,7 +69,7 @@ func initPostgresContainer(ctx context.Context) (*PostgresContainer, error) {
 		},
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	postgresC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		Started:          true,
 		ContainerRequest: req,
 	})
@@ -77,13 +77,13 @@ func initPostgresContainer(ctx context.Context) (*PostgresContainer, error) {
 		return nil, errors.Wrapf(err, "failed to create container using ContainerRequest=%v", req)
 	}
 
-	externalPort, err := container.MappedPort(ctx, nat.Port(defaultPostgresPort))
+	externalPort, err := postgresC.MappedPort(ctx, nat.Port(defaultPostgresPort))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get external port for exposed port %s", defaultPostgresPort)
 	}
 
 	pg := &PostgresContainer{
-		Container:                 container,
+		Container:                 postgresC,
 		host:                      "localhost",
 		port:                      externalPort,
 		sslMode:                   "disable",

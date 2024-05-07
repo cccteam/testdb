@@ -1,27 +1,44 @@
 package dbinitializer
 
 import (
+	"context"
+
 	"github.com/go-playground/errors/v5"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PostgresDB represents a container based database
-type PostgresDB struct {
+// PostgresDatabase represents a postgres database
+type PostgresDatabase struct {
 	*pgxpool.Pool
 	dbName  string
 	schema  string
 	connstr string
 }
 
+func NewPostgresDatabase(ctx context.Context, database, schema, host, port, username, password string) (*PostgresDatabase, error) {
+	connstr := postgresConnStr(username, password, host, port, database)
+
+	conn, err := openDB(ctx, connstr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PostgresDatabase{
+		Pool:    conn,
+		dbName:  database,
+		schema:  schema,
+		connstr: connstr,
+	}, nil
+}
+
 // Schema returns the default schema
-func (db *PostgresDB) Schema() string {
+func (db *PostgresDatabase) Schema() string {
 	return db.schema
 }
 
 // MigrateUp will migrate all the way up, applying all up migrations from all sourceURL's
-func (db *PostgresDB) MigrateUp(sourceURL ...string) error {
-
+func (db *PostgresDatabase) MigrateUp(sourceURL ...string) error {
 	for _, source := range sourceURL {
 		m, err := migrate.New(source, db.connstr)
 		if err != nil {
@@ -49,8 +66,7 @@ func (db *PostgresDB) MigrateUp(sourceURL ...string) error {
 }
 
 // MigrateDown will migrate all the way down
-func (db *PostgresDB) MigrateDown(sourceURL string) error {
-
+func (db *PostgresDatabase) MigrateDown(sourceURL string) error {
 	m, err := migrate.New(sourceURL, db.connstr)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create new migrate with fileURL=%s and connectionURL=%s", sourceURL, db.connstr)
@@ -70,6 +86,6 @@ func (db *PostgresDB) MigrateDown(sourceURL string) error {
 }
 
 // Close closes the database connection
-func (db *PostgresDB) Close() {
+func (db *PostgresDatabase) Close() {
 	db.Pool.Close()
 }

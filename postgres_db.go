@@ -9,9 +9,9 @@ import (
 // PostgresDB represents a container based database
 type PostgresDB struct {
 	*pgxpool.Pool
-	pg     *PostgresContainer
-	dbName string
-	schema string
+	dbName  string
+	schema  string
+	connstr string
 }
 
 // Schema returns the default schema
@@ -21,12 +21,11 @@ func (db *PostgresDB) Schema() string {
 
 // MigrateUp will migrate all the way up, applying all up migrations from all sourceURL's
 func (db *PostgresDB) MigrateUp(sourceURL ...string) error {
-	databaseURL := db.pg.connectionURI(db.pg.unpriviledgedUserUsername, db.pg.password, db.dbName)
 
 	for _, source := range sourceURL {
-		m, err := migrate.New(source, databaseURL)
+		m, err := migrate.New(source, db.connstr)
 		if err != nil {
-			return errors.Wrapf(err, "migrate.New(): fileURL=%s and connectionURL=%s", source, databaseURL)
+			return errors.Wrapf(err, "migrate.New(): fileURL=%s and connectionURL=%s", source, db.connstr)
 		}
 
 		if _, _, err := m.Version(); err == nil {
@@ -51,11 +50,10 @@ func (db *PostgresDB) MigrateUp(sourceURL ...string) error {
 
 // MigrateDown will migrate all the way down
 func (db *PostgresDB) MigrateDown(sourceURL string) error {
-	databaseURL := db.pg.connectionURI(db.pg.unpriviledgedUserUsername, db.pg.password, db.dbName)
 
-	m, err := migrate.New(sourceURL, databaseURL)
+	m, err := migrate.New(sourceURL, db.connstr)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create new migrate with fileURL=%s and connectionURL=%s", sourceURL, databaseURL)
+		return errors.Wrapf(err, "failed to create new migrate with fileURL=%s and connectionURL=%s", sourceURL, db.connstr)
 	}
 
 	if err := m.Down(); err != nil {

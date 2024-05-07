@@ -26,13 +26,12 @@ const (
 // PostgresContainer represents a docker container running a postgres instance.
 type PostgresContainer struct {
 	testcontainers.Container
-	host                      string
-	port                      nat.Port
-	sslMode                   string
-	superUserUsername         string
-	unpriviledgedUserUsername string
-	password                  string
-	defaultDatabase           string
+	host                 string
+	port                 nat.Port
+	superUsername        string
+	unprivilegedUsername string
+	password             string
+	defaultDatabase      string
 
 	sMu                  sync.Mutex
 	superUserConnections map[string]*pgxpool.Pool
@@ -82,19 +81,16 @@ func initPostgresContainer(ctx context.Context) (*PostgresContainer, error) {
 		return nil, errors.Wrapf(err, "failed to get external port for exposed port %s", defaultPostgresPort)
 	}
 
-	pg := &PostgresContainer{
-		Container:                 postgresC,
-		host:                      "localhost",
-		port:                      externalPort,
-		sslMode:                   "disable",
-		superUserConnections:      make(map[string]*pgxpool.Pool, 0),
-		superUserUsername:         "postgres",
-		unpriviledgedUserUsername: "unprivileged",
-		password:                  "password",
-		defaultDatabase:           defaultPostgresDatabase,
-	}
-
-	return pg, nil
+	return &PostgresContainer{
+		Container:            postgresC,
+		host:                 "localhost",
+		port:                 externalPort,
+		superUserConnections: make(map[string]*pgxpool.Pool, 0),
+		superUsername:        "postgres",
+		unprivilegedUsername: "unprivileged",
+		password:             password,
+		defaultDatabase:      defaultPostgresDatabase,
+	}, nil
 }
 
 // Close closes all connections to the postgres instance
@@ -112,7 +108,7 @@ func (pg *PostgresContainer) superUserConnection(ctx context.Context, database s
 	pool, ok := pg.superUserConnections[database]
 	if !ok || pool == nil || pool.Ping(ctx) != nil {
 		var err error
-		pool, err = openDB(ctx, pg.connectionURI(pg.superUserUsername, pg.password, database))
+		pool, err = openDB(ctx, PostgresConnStr(pg.superUsername, pg.password, pg.host, pg.port.Port(), database))
 		if err != nil {
 			return nil, err
 		}
@@ -138,13 +134,13 @@ func (pg *PostgresContainer) CreateDatabase(ctx context.Context, dbName string) 
 			LC_CTYPE = 'en_US.utf8'
 			TABLESPACE = pg_default
 			CONNECTION LIMIT = -1;
-	`, dbName, pg.unpriviledgedUserUsername))
+	`, dbName, pg.unprivilegedUsername))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create database=%q", dbName)
 	}
 
 	// create extension in the newly created table
-	db, err = openDB(ctx, pg.connectionURI(pg.superUserUsername, pg.password, dbName))
+	db, err = openDB(ctx, PostgresConnStr(pg.superUsername, pg.password, pg.host, pg.port.Port(), dbName))
 	if err != nil {
 		return nil, err
 	}
@@ -158,22 +154,22 @@ func (pg *PostgresContainer) CreateDatabase(ctx context.Context, dbName string) 
 		return nil, errors.Wrapf(err, "failed to create extension btree_gist in database=%q", dbName)
 	}
 
-	u, err := openDB(ctx, pg.connectionURI(pg.unpriviledgedUserUsername, pg.password, dbName))
+	u, err := openDB(ctx, PostgresConnStr(pg.unprivilegedUsername, pg.password, pg.host, pg.port.Port(), dbName))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to database=%q with %s", dbName, pg.unpriviledgedUserUsername)
+		return nil, errors.Wrapf(err, "failed to connect to database=%q with %s", dbName, pg.unprivilegedUsername)
 	}
 	_, err = db.Exec(ctx, fmt.Sprintf(`
 		CREATE SCHEMA IF NOT EXISTS "%s";
-	`, pg.unpriviledgedUserUsername))
+	`, pg.unprivilegedUsername))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create schema %q", pg.unpriviledgedUserUsername)
+		return nil, errors.Wrapf(err, "failed to create schema %q", pg.unprivilegedUsername)
 	}
 
 	return &PostgresDB{
-		Pool:   u,
-		pg:     pg,
-		dbName: dbName,
-		schema: pg.unpriviledgedUserUsername,
+		Pool:    u,
+		dbName:  dbName,
+		schema:  pg.unprivilegedUsername,
+		connstr: PostgresConnStr(pg.unprivilegedUsername, pg.password, pg.host, pg.port.Port(), dbName),
 	}, nil
 }
 
@@ -192,21 +188,20 @@ func (pg *PostgresContainer) addUnprivilegedUser(ctx context.Context) error {
 			NOREPLICATION
 			CONNECTION LIMIT -1
 			PASSWORD '%s';
-	`, pg.unpriviledgedUserUsername, pg.password)); err != nil {
+	`, pg.unprivilegedUsername, pg.password)); err != nil {
 		return errors.Wrap(err, "failed to create unprivileged user")
 	}
 
 	return nil
 }
 
-func (pg *PostgresContainer) connectionURI(username, password, database string) string {
-	return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+func PostgresConnStr(username, password, host, port, database string) string {
+	return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
 		username,
 		password,
-		pg.host,
-		pg.port.Port(),
+		host,
+		port,
 		database,
-		pg.sslMode,
 	)
 }
 

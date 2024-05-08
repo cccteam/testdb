@@ -16,10 +16,8 @@ type PostgresDatabase struct {
 	connstr string
 }
 
-func NewPostgresDatabase(ctx context.Context, database, schema, host, port, username, password string) (*PostgresDatabase, error) {
-	connstr := postgresConnStr(username, password, host, port, database)
-
-	conn, err := openDB(ctx, connstr)
+func NewPostgresDatabase(ctx context.Context, database, schema, connStr string) (*PostgresDatabase, error) {
+	conn, err := openDB(ctx, connStr)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +26,7 @@ func NewPostgresDatabase(ctx context.Context, database, schema, host, port, user
 		Pool:    conn,
 		dbName:  database,
 		schema:  schema,
-		connstr: connstr,
+		connstr: connStr,
 	}, nil
 }
 

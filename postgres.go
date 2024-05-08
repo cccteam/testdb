@@ -109,7 +109,7 @@ func (pg *PostgresContainer) superUserConnection(ctx context.Context, database s
 	pool, ok := pg.superUserConnections[database]
 	if !ok || pool == nil || pool.Ping(ctx) != nil {
 		var err error
-		pool, err = openDB(ctx, postgresConnStr(pg.superUsername, pg.password, pg.host, pg.port.Port(), database))
+		pool, err = openDB(ctx, PostgresConnStr(pg.superUsername, pg.password, pg.host, pg.port.Port(), database))
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +141,7 @@ func (pg *PostgresContainer) CreateDatabase(ctx context.Context, dbName string) 
 	}
 
 	// create extension in the newly created table
-	db, err = openDB(ctx, postgresConnStr(pg.superUsername, pg.password, pg.host, pg.port.Port(), dbName))
+	db, err = openDB(ctx, PostgresConnStr(pg.superUsername, pg.password, pg.host, pg.port.Port(), dbName))
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (pg *PostgresContainer) CreateDatabase(ctx context.Context, dbName string) 
 		return nil, errors.Wrapf(err, "failed to create extension btree_gist in database=%q", dbName)
 	}
 
-	u, err := openDB(ctx, postgresConnStr(pg.unprivilegedUsername, pg.password, pg.host, pg.port.Port(), dbName))
+	u, err := openDB(ctx, PostgresConnStr(pg.unprivilegedUsername, pg.password, pg.host, pg.port.Port(), dbName))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to database=%q with %s", dbName, pg.unprivilegedUsername)
 	}
@@ -170,7 +170,7 @@ func (pg *PostgresContainer) CreateDatabase(ctx context.Context, dbName string) 
 		Pool:    u,
 		dbName:  dbName,
 		schema:  pg.unprivilegedUsername,
-		connstr: postgresConnStr(pg.unprivilegedUsername, pg.password, pg.host, pg.port.Port(), dbName),
+		connstr: PostgresConnStr(pg.unprivilegedUsername, pg.password, pg.host, pg.port.Port(), dbName),
 	}, nil
 }
 
@@ -196,16 +196,6 @@ func (pg *PostgresContainer) addUnprivilegedUser(ctx context.Context) error {
 	return nil
 }
 
-func postgresConnStr(username, password, host, port, database string) string {
-	return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
-		username,
-		password,
-		host,
-		port,
-		database,
-	)
-}
-
 // validDatabaseName returns a valid database name for postgres. It replaces all invalid characters with a valid one or removes them.
 func (pg *PostgresContainer) validDatabaseName(dbName string) string {
 	dbName = strings.ReplaceAll(dbName, "/", "_")
@@ -222,6 +212,16 @@ func (pg *PostgresContainer) validDatabaseName(dbName string) string {
 	}
 
 	return dbName
+}
+
+func PostgresConnStr(username, password, host, port, database string) string {
+	return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
+		username,
+		password,
+		host,
+		port,
+		database,
+	)
 }
 
 func openDB(ctx context.Context, connectionString string) (*pgxpool.Pool, error) {

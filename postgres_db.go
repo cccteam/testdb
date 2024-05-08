@@ -8,14 +8,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PostgresDatabase represents a postgres database
+// PostgresDatabase represents a postgres database created and ready for migrations
 type PostgresDatabase struct {
 	*pgxpool.Pool
 	dbName  string
 	schema  string
-	connstr string
+	connStr string
 }
 
+// NewPostgresDatabase represents a new postgres database
 func NewPostgresDatabase(ctx context.Context, database, schema, connStr string) (*PostgresDatabase, error) {
 	conn, err := openDB(ctx, connStr)
 	if err != nil {
@@ -26,7 +27,7 @@ func NewPostgresDatabase(ctx context.Context, database, schema, connStr string) 
 		Pool:    conn,
 		dbName:  database,
 		schema:  schema,
-		connstr: connStr,
+		connStr: connStr,
 	}, nil
 }
 
@@ -38,9 +39,9 @@ func (db *PostgresDatabase) Schema() string {
 // MigrateUp will migrate all the way up, applying all up migrations from all sourceURL's
 func (db *PostgresDatabase) MigrateUp(sourceURL ...string) error {
 	for _, source := range sourceURL {
-		m, err := migrate.New(source, db.connstr)
+		m, err := migrate.New(source, db.connStr)
 		if err != nil {
-			return errors.Wrapf(err, "migrate.New(): fileURL=%s and connectionURL=%s", source, db.connstr)
+			return errors.Wrapf(err, "migrate.New(): fileURL=%s and connectionURL=%s", source, db.connStr)
 		}
 
 		if _, _, err := m.Version(); err == nil {
@@ -65,9 +66,9 @@ func (db *PostgresDatabase) MigrateUp(sourceURL ...string) error {
 
 // MigrateDown will migrate all the way down
 func (db *PostgresDatabase) MigrateDown(sourceURL string) error {
-	m, err := migrate.New(sourceURL, db.connstr)
+	m, err := migrate.New(sourceURL, db.connStr)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create new migrate with fileURL=%s and connectionURL=%s", sourceURL, db.connstr)
+		return errors.Wrapf(err, "failed to create new migrate with fileURL=%s and connectionURL=%s", sourceURL, db.connStr)
 	}
 
 	if err := m.Down(); err != nil {

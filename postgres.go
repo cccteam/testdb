@@ -94,35 +94,10 @@ func initPostgresContainer(ctx context.Context) (*PostgresContainer, error) {
 	}, nil
 }
 
-// Close closes all connections to the postgres instance
-func (pg *PostgresContainer) Close() {
-	for _, pool := range pg.superUserConnections {
-		pool.Close()
-	}
-}
-
-// superUserConnection returns a connection to the postgres instance as the super user.
-func (pg *PostgresContainer) superUserConnection(ctx context.Context, database string) (*pgxpool.Pool, error) {
-	pg.sMu.Lock()
-	defer pg.sMu.Unlock()
-
-	pool, ok := pg.superUserConnections[database]
-	if !ok || pool == nil || pool.Ping(ctx) != nil {
-		var err error
-		pool, err = openDB(ctx, PostgresConnStr(pg.superUsername, pg.password, pg.host, pg.port.Port(), database))
-		if err != nil {
-			return nil, err
-		}
-		pg.superUserConnections[database] = pool
-	}
-
-	return pool, nil
-}
-
 // CreateDatabase creates a new database with the given name and returns a connection to it.
-func (pg *PostgresContainer) CreateDatabase(ctx context.Context, dbName string) (*PostgresDatabase, error) {
-	dbName = pg.validDatabaseName(dbName)
-	db, err := pg.superUserConnection(ctx, pg.defaultDatabase)
+func (pc *PostgresContainer) CreateDatabase(ctx context.Context, dbName string) (*PostgresDatabase, error) {
+	dbName = pc.validDatabaseName(dbName)
+	db, err := pc.superUserConnection(ctx, pc.defaultDatabase)
 	if err != nil {
 		return nil, err
 	}
@@ -135,13 +110,13 @@ func (pg *PostgresContainer) CreateDatabase(ctx context.Context, dbName string) 
 			LC_CTYPE = 'en_US.utf8'
 			TABLESPACE = pg_default
 			CONNECTION LIMIT = -1;
-	`, dbName, pg.unprivilegedUsername))
+	`, dbName, pc.unprivilegedUsername))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create database=%q", dbName)
 	}
 
 	// create extension in the newly created table
-	db, err = openDB(ctx, PostgresConnStr(pg.superUsername, pg.password, pg.host, pg.port.Port(), dbName))
+	db, err = openDB(ctx, PostgresConnStr(pc.superUsername, pc.password, pc.host, pc.port.Port(), dbName))
 	if err != nil {
 		return nil, err
 	}
@@ -155,27 +130,52 @@ func (pg *PostgresContainer) CreateDatabase(ctx context.Context, dbName string) 
 		return nil, errors.Wrapf(err, "failed to create extension btree_gist in database=%q", dbName)
 	}
 
-	u, err := openDB(ctx, PostgresConnStr(pg.unprivilegedUsername, pg.password, pg.host, pg.port.Port(), dbName))
+	u, err := openDB(ctx, PostgresConnStr(pc.unprivilegedUsername, pc.password, pc.host, pc.port.Port(), dbName))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to database=%q with %s", dbName, pg.unprivilegedUsername)
+		return nil, errors.Wrapf(err, "failed to connect to database=%q with %s", dbName, pc.unprivilegedUsername)
 	}
 	_, err = db.Exec(ctx, fmt.Sprintf(`
 		CREATE SCHEMA IF NOT EXISTS "%s";
-	`, pg.unprivilegedUsername))
+	`, pc.unprivilegedUsername))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create schema %q", pg.unprivilegedUsername)
+		return nil, errors.Wrapf(err, "failed to create schema %q", pc.unprivilegedUsername)
 	}
 
 	return &PostgresDatabase{
 		Pool:    u,
 		dbName:  dbName,
-		schema:  pg.unprivilegedUsername,
-		connstr: PostgresConnStr(pg.unprivilegedUsername, pg.password, pg.host, pg.port.Port(), dbName),
+		schema:  pc.unprivilegedUsername,
+		connStr: PostgresConnStr(pc.unprivilegedUsername, pc.password, pc.host, pc.port.Port(), dbName),
 	}, nil
 }
 
-func (pg *PostgresContainer) addUnprivilegedUser(ctx context.Context) error {
-	db, err := pg.superUserConnection(ctx, pg.defaultDatabase)
+// Close closes all connections to the postgres instance
+func (pc *PostgresContainer) Close() {
+	for _, pool := range pc.superUserConnections {
+		pool.Close()
+	}
+}
+
+// superUserConnection returns a connection to the postgres instance as the super user.
+func (pc *PostgresContainer) superUserConnection(ctx context.Context, database string) (*pgxpool.Pool, error) {
+	pc.sMu.Lock()
+	defer pc.sMu.Unlock()
+
+	pool, ok := pc.superUserConnections[database]
+	if !ok || pool == nil || pool.Ping(ctx) != nil {
+		var err error
+		pool, err = openDB(ctx, PostgresConnStr(pc.superUsername, pc.password, pc.host, pc.port.Port(), database))
+		if err != nil {
+			return nil, err
+		}
+		pc.superUserConnections[database] = pool
+	}
+
+	return pool, nil
+}
+
+func (pc *PostgresContainer) addUnprivilegedUser(ctx context.Context) error {
+	db, err := pc.superUserConnection(ctx, pc.defaultDatabase)
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (pg *PostgresContainer) addUnprivilegedUser(ctx context.Context) error {
 			NOREPLICATION
 			CONNECTION LIMIT -1
 			PASSWORD '%s';
-	`, pg.unprivilegedUsername, pg.password)); err != nil {
+	`, pc.unprivilegedUsername, pc.password)); err != nil {
 		return errors.Wrap(err, "failed to create unprivileged user")
 	}
 
@@ -197,17 +197,17 @@ func (pg *PostgresContainer) addUnprivilegedUser(ctx context.Context) error {
 }
 
 // validDatabaseName returns a valid database name for postgres. It replaces all invalid characters with a valid one or removes them.
-func (pg *PostgresContainer) validDatabaseName(dbName string) string {
+func (pc *PostgresContainer) validDatabaseName(dbName string) string {
 	dbName = strings.ReplaceAll(dbName, "/", "_")
 	dbName = strings.ReplaceAll(dbName, "#", "_")
 	dbName = strings.ReplaceAll(dbName, "(", "")
 	dbName = strings.ReplaceAll(dbName, ")", "")
 
 	if l := len(dbName); l > 63 {
-		pg.muReplacementCount.Lock()
-		defer pg.muReplacementCount.Unlock()
-		pg.replacementCount++
-		uid := fmt.Sprintf("%d", pg.replacementCount)
+		pc.muReplacementCount.Lock()
+		defer pc.muReplacementCount.Unlock()
+		pc.replacementCount++
+		uid := fmt.Sprintf("%d", pc.replacementCount)
 		dbName = dbName[:29-len(uid)/2] + "-" + uid + "-" + dbName[l-30-len(uid)/2:]
 	}
 

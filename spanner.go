@@ -93,10 +93,10 @@ func NewSpannerContainer(ctx context.Context, imageVersion string) (*SpannerCont
 }
 
 // CreateTestDatabase creates a database with dbName. Each test should create their own database for testing
-func (sp *SpannerContainer) CreateTestDatabase(ctx context.Context, dbName string) (*SpannerDB, error) {
-	dbName = sp.validDatabaseName(dbName)
+func (sc *SpannerContainer) CreateTestDatabase(ctx context.Context, dbName string) (*SpannerDB, error) {
+	dbName = sc.validDatabaseName(dbName)
 
-	db, err := newSpannerDatabase(ctx, sp.admin, sp.projectID, sp.instanceID, dbName, sp.opts...)
+	db, err := newSpannerDatabase(ctx, sc.admin, sc.projectID, sc.instanceID, dbName, sc.opts...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create spanner database %s", dbName)
 	}
@@ -105,15 +105,15 @@ func (sp *SpannerContainer) CreateTestDatabase(ctx context.Context, dbName strin
 }
 
 // Close cleans up open resouces
-func (sp *SpannerContainer) Close() error {
-	if err := sp.admin.Close(); err != nil {
+func (sc *SpannerContainer) Close() error {
+	if err := sc.admin.Close(); err != nil {
 		return errors.Wrap(err, "database.DatabaseAdminClient.Close()")
 	}
 
 	return nil
 }
 
-func (sp *SpannerContainer) validDatabaseName(dbName string) string {
+func (sc *SpannerContainer) validDatabaseName(dbName string) string {
 	b := []byte(dbName)
 	b = bytes.ToLower(b)
 
@@ -127,10 +127,10 @@ func (sp *SpannerContainer) validDatabaseName(dbName string) string {
 	dbName = string(b)
 
 	if l := len(dbName); l > 30 {
-		sp.mu.Lock()
-		defer sp.mu.Unlock()
-		sp.dbCount++
-		dbName = fmt.Sprintf("db%d-%s", sp.dbCount, dbName[l-20:])
+		sc.mu.Lock()
+		defer sc.mu.Unlock()
+		sc.dbCount++
+		dbName = fmt.Sprintf("db%d-%s", sc.dbCount, dbName[l-20:])
 	}
 
 	return dbName

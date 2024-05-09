@@ -42,8 +42,8 @@ type PostgresContainer struct {
 }
 
 // NewPostgresContainer returns a new PostgresContainer ready to use with postgres.
-func NewPostgresContainer(ctx context.Context) (*PostgresContainer, error) {
-	pg, err := initPostgresContainer(ctx)
+func NewPostgresContainer(ctx context.Context, imageVersion string) (*PostgresContainer, error) {
+	pg, err := initPostgresContainer(ctx, imageVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -56,11 +56,11 @@ func NewPostgresContainer(ctx context.Context) (*PostgresContainer, error) {
 }
 
 // initPostgresContainer returns a PostgresContainer which represents a newly started docker container running postgres.
-func initPostgresContainer(ctx context.Context) (*PostgresContainer, error) {
+func initPostgresContainer(ctx context.Context, imageVersion string) (*PostgresContainer, error) {
 	password := "password"
 
 	req := testcontainers.ContainerRequest{
-		Image:        "postgres:latest",
+		Image:        "postgres:" + imageVersion,
 		Cmd:          []string{"postgres", "-c", "max_connections=250"},
 		WaitingFor:   wait.ForLog(" UTC [1] LOG:  database system is ready to accept connections"),
 		ExposedPorts: []string{defaultPostgresPort},

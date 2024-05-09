@@ -12,7 +12,7 @@ func TestPostgres_FullMigration(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	container, err := NewPostgresContainer(ctx)
+	container, err := NewPostgresContainer(ctx, "latest")
 	if err != nil {
 		t.Fatalf("New(): %s", err)
 	}
@@ -97,7 +97,7 @@ func TestPostgres_FullMigrationWithNewPostgresDatabase(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	pgC, err := NewPostgresContainer(ctx)
+	pgC, err := NewPostgresContainer(ctx, "16")
 	if err != nil {
 		t.Fatalf("New(): %s", err)
 	}

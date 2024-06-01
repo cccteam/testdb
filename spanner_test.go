@@ -10,7 +10,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-func TestClient_FullMigration(t *testing.T) {
+func TestSpanner_FullMigration(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -34,37 +34,37 @@ func TestClient_FullMigration(t *testing.T) {
 		{
 			name: "FullMigration",
 			args: args{
-				upSourceURL:   []string{"file://testdata/migrations", "file://testdata/migrations2"},
-				downSourceURL: "file://testdata/migrations",
+				upSourceURL:   []string{"file://testdata/spanner/migrations", "file://testdata/spanner/migrations2"},
+				downSourceURL: "file://testdata/spanner/migrations",
 			},
 		},
 		{
 			name: "Migration up error",
 			args: args{
-				upSourceURL: []string{"file://testdata/migration_error"},
+				upSourceURL: []string{"file://testdata/spanner/migration_error"},
 			},
 			wantUpErr: true,
 		},
 		{
 			name: "Migration up source error",
 			args: args{
-				upSourceURL: []string{"file://testdata/migration_does_not_exist"},
+				upSourceURL: []string{"file://testdata/spanner/migration_does_not_exist"},
 			},
 			wantUpErr: true,
 		},
 		{
 			name: "Migration down source error",
 			args: args{
-				upSourceURL:   []string{"file://testdata/migrations"},
-				downSourceURL: "file://testdata/migration_does_not_exist",
+				upSourceURL:   []string{"file://testdata/spanner/migrations"},
+				downSourceURL: "file://testdata/spanner/migration_does_not_exist",
 			},
 			wantDownErr: true,
 		},
 		{
 			name: "Migration down error",
 			args: args{
-				upSourceURL:   []string{"file://testdata/migrations"},
-				downSourceURL: "file://testdata/migration_error",
+				upSourceURL:   []string{"file://testdata/spanner/migrations"},
+				downSourceURL: "file://testdata/spanner/migration_error",
 			},
 			wantDownErr: true,
 		},
@@ -120,14 +120,14 @@ func TestNewSpannerContainer(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "Conttainer with default host and port",
+			name: "Container with default host and port",
 			args: args{
 				ctx: context.Background(),
 			},
 			wantHost: "localhost",
 		},
 		{
-			name: "Conttainer error from canceled context",
+			name: "Container error from canceled context",
 			args: args{
 				ctx: ctx,
 			},

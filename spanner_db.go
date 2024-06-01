@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/spanner"
-	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	spannerDB "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	instanceadm "cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
@@ -19,14 +19,14 @@ import (
 // SpannerDB represents a database created and ready for migrations
 type SpannerDB struct {
 	dbStr      string
-	admin      *database.DatabaseAdminClient
+	admin      *spannerDB.DatabaseAdminClient
 	closeAdmin bool
 	*spanner.Client
 }
 
 // NewSpannerDatabase will create a spanner database
 func NewSpannerDatabase(ctx context.Context, projectID, instanceID, dbName string, opts ...option.ClientOption) (*SpannerDB, error) {
-	adminClient, err := database.NewDatabaseAdminClient(ctx, opts...)
+	adminClient, err := spannerDB.NewDatabaseAdminClient(ctx, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "database.NewDatabaseAdminClient()")
 	}
@@ -43,7 +43,7 @@ func NewSpannerDatabase(ctx context.Context, projectID, instanceID, dbName strin
 	return db, nil
 }
 
-func newSpannerDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, projectID, instanceID, dbName string, opts ...option.ClientOption) (*SpannerDB, error) {
+func newSpannerDatabase(ctx context.Context, adminClient *spannerDB.DatabaseAdminClient, projectID, instanceID, dbName string, opts ...option.ClientOption) (*SpannerDB, error) {
 	dbStr := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	client, err := spanner.NewClient(ctx, dbStr, opts...)
 	if err != nil {

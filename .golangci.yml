@@ -12,6 +12,8 @@ linters-settings:
           - github.com/docker/go-connections
           - github.com/go-playground/errors/v5
           - github.com/golang-migrate/migrate/v4
+          - github.com/jackc/pgx-shopspring-decimal
+          - github.com/jackc/pgx/v5
           - github.com/testcontainers/testcontainers-go
           - google.golang.org/api
           - google.golang.org/grpc

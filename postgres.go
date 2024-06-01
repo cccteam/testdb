@@ -1,4 +1,4 @@
-package dbinitializer
+package dbinitiator
 
 import (
 	"context"

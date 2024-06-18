@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/cccteam/db-initiator/compare/v0.1.0...v0.1.1) (2024-06-18)
+
+
+### Code Upgrade
+
+* Update workflows to latest version ([#18](https://github.com/cccteam/db-initiator/issues/18)) ([9916ab4](https://github.com/cccteam/db-initiator/commit/9916ab4f7c3e028b1574a208fba0ad8c3bd23d1f))
+
 ## 0.1.0 (2024-06-18)
 
 
